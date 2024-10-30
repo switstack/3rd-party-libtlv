@@ -1,4 +1,5 @@
 
+#include <cstddef>
 #include <cstdio>
 #include <cstdarg>
 #include <stack>
@@ -23,7 +24,7 @@ std::vector<unsigned char> unhexify( const std::string &str )
 	{
 		bool flip_flap = str.size() % 2;
 		int offset = flip_flap;
-		for( int i = 0; i < str.size(); i++ )
+		for( std::size_t i = 0; i < str.size(); i++ )
 		{
 			unsigned char ch = nibble[static_cast<unsigned char>(str[i])];
 			if ( !ch )
@@ -838,7 +839,7 @@ std::vector<unsigned char> Tlv::dump() const
 			}
 		}
 	}
-	static auto build_tag = []( std::vector<unsigned char> &out, Data &element, std::vector<unsigned char> *data = nullptr ) {
+	static auto build_tag = []( std::vector<unsigned char> &out, Data &element, std::vector<unsigned char> *data ) {
 		// Build tag
 		for( int i = ( sizeof( element.tag.value ) - __builtin_clz( element.tag.value ) / 8 ) - 1; i >= 0; i-- )
 		{
@@ -884,7 +885,7 @@ std::vector<unsigned char> Tlv::dump() const
 		}
 		if ( it->second->children.empty() )
 		{
-			build_tag( build_stack.top().second, *it->second );
+			build_tag( build_stack.top().second, *it->second, nullptr );
 		}
 		else if ( it->first >= build_stack.size() )
 		{
