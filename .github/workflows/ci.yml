@@ -1,0 +1,16 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - 'master'
+      - 'switstack-main'
+  pull_request:
+  release:
+    types: [ published ]
+
+jobs:
+  build:
+    # Always build
+    uses: ./.github/workflows/build.yml
+    secrets: inherit
