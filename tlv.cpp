@@ -4,8 +4,14 @@
 #include <cstdarg>
 #include <stack>
 #include <functional>
-#include <tlv.hpp>
 
+#if (defined(__MINGW32__) && __USE_MINGW_ANSI_STDIO == 0) || (defined(_MSC_VER) && _MSC_VER < 1800)
+	#define FORMAT_SIZET "llu"
+#else
+	#define FORMAT_SIZET "zu"
+#endif
+
+#include <tlv.hpp>
 
 std::vector<unsigned char> unhexify( const std::string &str )
 {
@@ -371,7 +377,7 @@ class Tlv::Parser
 			bool has_byte = next_byte( b );
 			if ( !has_byte && state != Start )
 			{
-				s = Tlv::Status( Tlv::Status::UnexpectedEnd, "Unexpected end at [%s] offset %lu", path().c_str(), offset() );
+				s = Tlv::Status( Tlv::Status::UnexpectedEnd, std::string("Unexpected end at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
 				return nullptr;
 			}
 			if ( state == Start )
@@ -395,7 +401,7 @@ class Tlv::Parser
 			case Tag:
 				if ( tag_len >= 4 )
 				{
-					s = Tlv::Status( Tlv::Status::BadTag, "Tag is too long at [%s] offset %lu", path().c_str(), offset() );
+					s = Tlv::Status( Tlv::Status::BadTag, std::string("Tag is too long at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
 					return nullptr;
 				}
 				tag_len += 1;
@@ -408,7 +414,7 @@ class Tlv::Parser
 					size_len = ( b ^ more_octet_mask_ );
 					if ( size_len > 4 )
 					{
-						s = Tlv::Status( Tlv::Status::BadLength, "Tag length is too large at [%s] offset %lu", path().c_str(), offset() );
+						s = Tlv::Status( Tlv::Status::BadLength, std::string("Tag length is too large at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
 						return nullptr;
 					}
 					state = Len;
