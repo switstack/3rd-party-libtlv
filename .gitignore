@@ -3,5 +3,6 @@
 *.o
 *.a
 *.so
+/.vscode/
 /build/
 unittests
