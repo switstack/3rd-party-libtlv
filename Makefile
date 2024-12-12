@@ -5,17 +5,16 @@ INSTALL_LIB_DIR := /usr/local/lib/
 SHARED_LIB := libtlv.so
 STATIC_LIB := libtlv.a
 OBJ_FILE := tlv.o
-CFLAGS := -fno-rtti -fPIC --std=c++11
 AR = ar
 CXX = g++
-#CXX = clang++
+CXXFLAGS := -fno-rtti -fPIC --std=c++11 -Werror -Wall -Wextra -pedantic -pedantic-errors
 
 .PHONY: all static shared install uninstall test clean
 
 all: static shared
 
 $(OBJ_FILE): $(CURRENT_DIR)tlv.cpp
-	$(CXX) -I $(CURRENT_DIR) $(CFLAGS) -g -c -o $@ $<
+	$(CXX) -I $(CURRENT_DIR) $(CXXFLAGS) -g -c -o $@ $<
 
 static: $(OBJ_FILE)
 	$(AR) rcs $(STATIC_LIB) $^
@@ -38,7 +37,7 @@ uninstall:
 # requires cpputest
 # apt install cpputest
 test: static $(CURRENT_DIR)test.cpp
-	$(CXX) -I $(CURRENT_DIR) -g -c $(CURRENT_DIR)test.cpp
+	$(CXX) -I $(CURRENT_DIR) $(CXXFLAGS) -g -c $(CURRENT_DIR)test.cpp
 	$(CXX) test.o -L $(CURRENT_DIR) -l:$(STATIC_LIB) -lCppUTest -lCppUTestExt -o unittests
 	@echo Running tests...
 	@exec $(CURRENT_DIR)unittests -v

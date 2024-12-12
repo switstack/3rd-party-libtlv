@@ -4,12 +4,7 @@
 #include <cstdarg>
 #include <stack>
 #include <functional>
-
-#if (defined(__MINGW32__) && __USE_MINGW_ANSI_STDIO == 0) || (defined(_MSC_VER) && _MSC_VER < 1800)
-    #define FORMAT_SIZET "llu"
-#else
-    #define FORMAT_SIZET "zu"
-#endif
+#include <sstream>
 
 #include <tlv.hpp>
 
@@ -66,9 +61,23 @@ std::string hexify( const std::vector<unsigned char> &data, bool lower_case )
     return ret;
 }
 
+static int __clzsi2(unsigned x)
+{
+   unsigned y;
+   int n = 32;
+
+   y = x >>16; if (y != 0) {n = n -16;  x = y;}
+   y = x >> 8; if (y != 0) {n = n - 8;  x = y;}
+   y = x >> 4; if (y != 0) {n = n - 4;  x = y;}
+   y = x >> 2; if (y != 0) {n = n - 2;  x = y;}
+   y = x >> 1; if (y != 0) return n - 2;
+
+   return (n - x);
+}
+
 static uint32_t msb( uint32_t value )
 {
-    return value >> ( 8 * ( sizeof(value) - __builtin_clz( value ) / 8 - 1 ) );
+    return value >> ( 8 * ( sizeof(value) - __clzsi2( value ) / 8 - 1 ) );
 }
 
 /*
@@ -98,7 +107,7 @@ Tlv::Tag Tlv::Tag::build( Tlv::Tag::Class cls, bool constructed, uint32_t tag )
             // First byte
             ret.value = (uint32_t)cls | ( constructed ? constructed_tag : primitive_tag ) | first_byte_bits;
             // Next bytes
-            size_t effective_bits = sizeof( tag ) * 8 - __builtin_clz( tag );
+            size_t effective_bits = sizeof( tag ) * 8 - __clzsi2( tag );
             for( int i = ( effective_bits / 7 ) + ( ( effective_bits % 7 ) ? 1 : 0 ); i > 0; i-- )
             {
                 ret.value <<= 8;
@@ -162,7 +171,7 @@ bool Tlv::Tag::empty() const
 
 size_t Tlv::Tag::size() const
 {
-    return ( value == 0 ) ? 0 : 4 - __builtin_clz( value ) / 8;
+    return ( value == 0 ) ? 0 : 4 - __clzsi2( value ) / 8;
 }
 
 Tlv::Tag::Class Tlv::Tag::tag_class() const
@@ -177,7 +186,7 @@ bool Tlv::Tag::constructed() const
 
 uint32_t Tlv::Tag::tag_number() const
 {
-    int i = ( sizeof(value) - __builtin_clz( value ) / 8 );
+    int i = ( sizeof(value) - __clzsi2( value ) / 8 );
     uint32_t tag = ( i > 1 ) ? 0 : ( value & 0x1F );
     for( i--; i > 0; i-- )
     {
@@ -239,28 +248,10 @@ Tlv::Status::Status( const Code code ) :
     code_( code )
 {}
 
-Tlv::Status::Status( Code code, const char *fmt, ... ) :
-    code_( code )
-{
-    va_list vl, vl2;
-    va_start( vl, fmt );
-    va_copy( vl2, vl );
-    unsigned len = vsnprintf( nullptr, 0, fmt, vl ) + 1;
-    va_end( vl );
-    if ( len > 0 )
-    {
-        description_.resize( len );
-        vsnprintf( (char*)description_.c_str(), len, fmt, vl2 );
-    }
-    va_end( vl2 );
-}
-
-Tlv::Status& Tlv::Status::operator=( const Status &rhs )
-{
-    code_ = rhs.code_;
-    description_ = rhs.description_;
-    return *this;
-}
+Tlv::Status::Status( Code code, const std::string& description ) :
+    code_( code ),
+    description_ ( description )
+{}
 
 Tlv::Status::operator bool() const
 {
@@ -377,7 +368,8 @@ class Tlv::Parser
             bool has_byte = next_byte( b );
             if ( !has_byte && state != Start )
             {
-                s = Tlv::Status( Tlv::Status::UnexpectedEnd, std::string("Unexpected end at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
+                s = Tlv::Status( Tlv::Status::UnexpectedEnd, make_message(
+                    "Unexpected end", path(), offset()) );
                 return nullptr;
             }
             if ( state == Start )
@@ -401,7 +393,8 @@ class Tlv::Parser
             case Tag:
                 if ( tag_len >= 4 )
                 {
-                    s = Tlv::Status( Tlv::Status::BadTag, std::string("Tag is too long at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
+                    s = Tlv::Status( Tlv::Status::BadTag, make_message(
+                        "Tag too long", path(), offset()) );
                     return nullptr;
                 }
                 tag_len += 1;
@@ -414,7 +407,8 @@ class Tlv::Parser
                     size_len = ( b ^ more_octet_mask_ );
                     if ( size_len > 4 )
                     {
-                        s = Tlv::Status( Tlv::Status::BadLength, std::string("Tag length is too large at [%s] offset %" FORMAT_SIZET).c_str(), path().c_str(), offset() );
+                        s = Tlv::Status( Tlv::Status::BadLength, make_message(
+                            "Tag length too large", path(), offset()) );
                         return nullptr;
                     }
                     state = Len;
@@ -458,6 +452,23 @@ class Tlv::Parser
             }
         }
         return ret;
+    }
+
+    static std::string make_message(
+        const char* base_message,
+        const std::string& path,
+        size_t offset)
+    {
+        std::ostringstream stream;
+
+        stream
+            << base_message << " ("
+            << "path: " << path << "; "
+            << "offset: " << offset
+            << ")"
+        ;
+
+        return stream.str();
     }
 
 public:
@@ -847,7 +858,7 @@ std::vector<unsigned char> Tlv::dump() const
     }
     static auto build_tag = []( std::vector<unsigned char> &out, Data &element, std::vector<unsigned char> *data ) {
         // Build tag
-        for( int i = ( sizeof( element.tag.value ) - __builtin_clz( element.tag.value ) / 8 ) - 1; i >= 0; i-- )
+        for( int i = ( sizeof( element.tag.value ) - __clzsi2( element.tag.value ) / 8 ) - 1; i >= 0; i-- )
         {
             out.push_back( ( element.tag.value >> ( i * 8 ) ) & 0xFF );
         }
@@ -863,7 +874,7 @@ std::vector<unsigned char> Tlv::dump() const
             out.push_back( len & 0x7F );
         } else {
             // Definite long form
-            int len_bytes = 4 - __builtin_clz( len ) / 8;
+            int len_bytes = 4 - __clzsi2( len ) / 8;
             out.push_back( (unsigned char)( 0x80 | len_bytes ) );
             for( int i = len_bytes - 1; i >= 0; i-- )
             {
