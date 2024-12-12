@@ -1,8 +1,3 @@
-.cproject
-.project
-*.o
-*.a
-*.so
 /.vscode/
 /build/
-unittests
+/dist/
