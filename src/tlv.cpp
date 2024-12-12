@@ -6,7 +6,7 @@
 #include <functional>
 #include <sstream>
 
-#include <tlv.hpp>
+#include <tlv/tlv.hpp>
 
 std::vector<unsigned char> unhexify( const std::string &str )
 {
