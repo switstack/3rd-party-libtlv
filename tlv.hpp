@@ -28,10 +28,8 @@ public:
 
         Status();
         Status( const Code );
-        Status( const Code, const char*, ... )
-            __attribute__((format (printf, 3, 4)));
+        Status( const Code, const std::string& description );
 
-        Status& operator=( const Status& );
         operator bool() const;
         Code code() const;
         const std::string& description() const;

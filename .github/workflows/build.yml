@@ -7,9 +7,18 @@ jobs:
 
   build:
 
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/switstack/docker-alpine:latest
+    strategy:
+      matrix:
+        configuration:
+          - os: ubuntu-22.04
+            compiler: g++-11
+            packages: g++-11 cpputest
+          
+          - os: ubuntu-22.04
+            compiler: clang++-14
+            packages: clang-14 cpputest
+
+    runs-on: ${{ matrix.configuration.os }}
 
     steps:
   
@@ -17,12 +26,29 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
+        shell: bash
         run: |
-          apk update
-          apk add cpputest
+          if [[ "$RUNNER_OS" == 'Linux' ]]; then
+            distribution=$(cat /etc/*-release | grep ID | awk 'FNR <= 1' | cut -d '=' -f2 | tr '[:upper:]' '[:lower:]')
+            if [[ "$distribution" == 'debian' || "$distribution" == 'ubuntu' ]]; then
+              sudo apt update
+              sudo apt install -y \
+                ${{ matrix.configuration.packages }}
+            else
+              echo "Linux distribution '$distribution' not supported"
+              exit 1
+            fi
+          elif [[ "$RUNNER_OS" == 'macOS' ]]; then
+            brew install \
+              ${{ matrix.configuration.packages }}
+          else
+            echo "OS '$RUNNER_OS' not supported"
+            exit 1
+          fi
 
       - name: Build
-        run: make
+        run: make CXX=${{ matrix.configuration.compiler }} all
 
       - name: Test
-        run: make test
+        if: runner.os != 'Windows'
+        run: make CXX=${{ matrix.configuration.compiler }} test
