@@ -2,8 +2,10 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdarg>
-#include <stack>
 #include <functional>
+#include <limits>
+#include <stack>
+#include <stdexcept>
 #include <sstream>
 
 #include <tlv/tlv.hpp>
@@ -61,9 +63,9 @@ std::string hexify( const std::vector<unsigned char> &data, bool lower_case )
     return ret;
 }
 
-static int __clzsi2(unsigned x)
+static int __clzsi2(std::uint32_t x)
 {
-   unsigned y;
+   std::uint32_t y;
    int n = 32;
 
    y = x >>16; if (y != 0) {n = n -16;  x = y;}
@@ -75,7 +77,7 @@ static int __clzsi2(unsigned x)
    return (n - x);
 }
 
-static uint32_t msb( uint32_t value )
+static uint32_t msb( std::uint32_t value )
 {
     return value >> ( 8 * ( sizeof(value) - __clzsi2( value ) / 8 - 1 ) );
 }
@@ -108,7 +110,7 @@ Tlv::Tag Tlv::Tag::build( Tlv::Tag::Class cls, bool constructed, uint32_t tag )
             ret.value = (uint32_t)cls | ( constructed ? constructed_tag : primitive_tag ) | first_byte_bits;
             // Next bytes
             size_t effective_bits = sizeof( tag ) * 8 - __clzsi2( tag );
-            for( int i = ( effective_bits / 7 ) + ( ( effective_bits % 7 ) ? 1 : 0 ); i > 0; i-- )
+            for( size_t i = ( effective_bits / 7 ) + ( ( effective_bits % 7 ) ? 1 : 0 ); i > 0; i-- )
             {
                 ret.value <<= 8;
                 ret.value |= next_byte | ( ( tag >> ( 7 * ( i - 1 ) ) ) & paytload_bits );
@@ -872,14 +874,21 @@ std::vector<unsigned char> Tlv::dump() const
         {
             // Definite short form
             out.push_back( len & 0x7F );
-        } else {
+        }
+        else
+        if (len <= static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max()))
+        {
             // Definite long form
-            int len_bytes = 4 - __clzsi2( len ) / 8;
+            int len_bytes = 4 - __clzsi2( static_cast<std::uint32_t>(len) ) / 8;
             out.push_back( (unsigned char)( 0x80 | len_bytes ) );
             for( int i = len_bytes - 1; i >= 0; i-- )
             {
                 out.push_back( ( len >> ( i * 8 ) ) & 0xFF );
             }
+        }
+        else
+        {
+            throw std::runtime_error("Length too large");
         }
         // Append data
         if ( data )
@@ -1038,8 +1047,8 @@ uint32_t Tlv::uint32() const
 uint64_t Tlv::uint64() const
 {
     uint64_t ret = 0;
-    int n = ( data_->value.size() > 7 ) ? 8 : data_->value.size();
-    for( int i = 0; i < n; i++ )
+    std::size_t n = ( data_->value.size() > 7 ) ? 8 : data_->value.size();
+    for( std::size_t i = 0; i < n; i++ )
     {
         ret <<= 8;
         ret |= data_->value.at( i );
@@ -1162,9 +1171,9 @@ bool Tlv::bfs( std::function<bool(Tlv&)> cb ) const
     while( !backlog.empty() )
     {
         auto front = backlog.front();
-        Tlv node( front );
+        Tlv current_node( front );
         backlog.pop_front();
-        if ( !cb( node ) )
+        if ( !cb( current_node ) )
         {
             return false;
         }

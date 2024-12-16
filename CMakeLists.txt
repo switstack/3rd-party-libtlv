@@ -30,6 +30,20 @@ target_include_directories(
     $<BUILD_INTERFACE:${INCLUDE_DIRECTORY}>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+        ${PROJECT_NAME}
+        PUBLIC
+        --std=c++11 -Werror -Wall -Wextra -pedantic -pedantic-errors
+    )
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(
+        ${PROJECT_NAME}
+        PUBLIC
+        /std:c++14 /WX /W4 /EHsc
+    )
+endif()
+
 if(TLV_INSTALL)
     include(CMakePackageConfigHelpers)
 

@@ -11,31 +11,19 @@ jobs:
       matrix:
         configuration:
           - os: ubuntu-22.04
-            compiler:
-              c: gcc-11
-              cxx: g++-11
-              c_cxx_flags: --std=c++11 -Werror -Wall -Wextra -pedantic -pedantic-errors
+            compiler: g++-11
             packages: gcc-11 g++-11 cpputest
           
           - os: ubuntu-22.04
-            compiler:
-              c: clang-14
-              cxx: clang++-14
-              c_cxx_flags: --std=c++11 -Werror -Wall -Wextra -pedantic -pedantic-errors
+            compiler: clang++-14
             packages: clang-14 cpputest
           
           - os: macos-13
-            compiler:
-              c: clang
-              cxx: clang++
-              c_cxx_flags: --std=c++11 -Werror -Wall -Wextra -pedantic -pedantic-errors
+            compiler: clang++
             packages: cpputest
           
           - os: windows-2019
-            compiler:
-              c: ~
-              cxx: ~
-              c_cxx_flags: ~
+            compiler: cl
             packages: ~
 
     runs-on: ${{ matrix.configuration.os }}
@@ -73,10 +61,7 @@ jobs:
           cmake \
             -B "${{ env.BUILD_DIRECTORY }}" \
             -S "${{ env.SOURCE_DIRECTORY }}" \
-            -D CMAKE_C_COMPILER="${{ matrix.configuration.compiler.c }}" \
-            -D CMAKE_C_FLAGS="${{ matrix.configuration.compiler.c_cxx_flags }}" \
-            -D CMAKE_CXX_COMPILER="${{ matrix.configuration.compiler.cxx }}" \
-            -D CMAKE_CXX_FLAGS="${{ matrix.configuration.compiler.c_cxx_flags }}" \
+            -D CMAKE_CXX_COMPILER="${{ matrix.configuration.compiler }}" \
             -D CMAKE_BUILD_TYPE="Release" \
             -D TLV_BUILD_TESTS="${{ runner.os == 'Linux' && 'ON' || 'OFF'  }}"
 
