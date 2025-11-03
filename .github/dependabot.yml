@@ -1,0 +1,49 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    target-branch: "master"
+    assignees:
+      - "fpl-switstack"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10  # Sufficient margin for security emergencies
+    labels:
+      - "dependencies"
+      - "docker"
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      regular:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "master"
+    assignees:
+      - "fpl-switstack"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10  # Sufficient margin for security emergencies
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+      regular:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
